@@ -1,0 +1,306 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Test upload et analyse RoadGuard</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: system-ui, sans-serif;
+        background: #f4f6f8;
+        color: #17212b;
+      }
+
+      body {
+        box-sizing: border-box;
+        max-width: 760px;
+        margin: 40px auto;
+        padding: 0 20px;
+      }
+
+      main {
+        padding: 28px;
+        border: 1px solid #d8dee5;
+        border-radius: 12px;
+        background: white;
+        box-shadow: 0 8px 28px #17212b12;
+      }
+
+      h1 {
+        margin-top: 0;
+      }
+
+      label {
+        display: block;
+        margin: 18px 0 6px;
+        font-weight: 650;
+      }
+
+      input[type="url"],
+      input[type="file"] {
+        box-sizing: border-box;
+        width: 100%;
+        padding: 10px;
+        border: 1px solid #aab5c0;
+        border-radius: 6px;
+      }
+
+      button {
+        margin-top: 20px;
+        padding: 11px 18px;
+        border: 0;
+        border-radius: 6px;
+        background: #155eef;
+        color: white;
+        font: inherit;
+        font-weight: 650;
+        cursor: pointer;
+      }
+
+      button:disabled {
+        opacity: 0.6;
+        cursor: wait;
+      }
+
+      #status {
+        min-height: 1.5em;
+        margin-top: 20px;
+        font-weight: 650;
+      }
+
+      #status[data-state="error"] {
+        color: #b42318;
+      }
+
+      #status[data-state="success"] {
+        color: #067647;
+      }
+
+      pre {
+        overflow: auto;
+        max-height: 480px;
+        padding: 16px;
+        border-radius: 6px;
+        background: #101828;
+        color: #f2f4f7;
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+      }
+
+      .hint {
+        color: #475467;
+        font-size: 0.92rem;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Tester l’upload et l’analyse</h1>
+      <p>
+        Sélectionnez une image ou une vidéo. Le fichier est envoyé directement
+        vers S3, puis analysé par l’API.
+      </p>
+
+      <form id="upload-form">
+        <label for="api-url">URL de l’API</label>
+        <input
+          id="api-url"
+          name="api-url"
+          type="url"
+          value="https://h2ibigr6ae.execute-api.us-east-1.amazonaws.com"
+          required
+        >
+
+        <label for="media-file">Image ou vidéo</label>
+        <input
+          id="media-file"
+          name="media-file"
+          type="file"
+          accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/mpeg,video/quicktime,video/webm,video/x-matroska"
+          required
+        >
+        <p class="hint">
+          Images : 4 Mio maximum. Vidéos : 100 Mio maximum. Types acceptés :
+          JPEG, PNG, GIF, WebP, MP4, MPEG, MOV, WebM et MKV.
+        </p>
+
+        <button id="submit-button" type="submit">Téléverser et analyser</button>
+      </form>
+
+      <div id="status" role="status" aria-live="polite"></div>
+      <pre id="result" hidden></pre>
+    </main>
+
+    <script>
+      const supportedTypes = new Set([
+        "image/jpeg",
+        "image/png",
+        "image/gif",
+        "image/webp",
+        "video/mp4",
+        "video/mpeg",
+        "video/quicktime",
+        "video/webm",
+        "video/x-matroska",
+      ]);
+      const maxImageBytes = 4 * 1024 * 1024;
+      const maxUploadBytes = 100 * 1024 * 1024;
+      const form = document.querySelector("#upload-form");
+      const fileInput = document.querySelector("#media-file");
+      const apiUrlInput = document.querySelector("#api-url");
+      const submitButton = document.querySelector("#submit-button");
+      const statusElement = document.querySelector("#status");
+      const resultElement = document.querySelector("#result");
+
+      function setStatus(message, state = "") {
+        statusElement.textContent = message;
+        statusElement.dataset.state = state;
+      }
+
+      async function readJsonResponse(response, operation) {
+        const text = await response.text();
+        let payload;
+        try {
+          payload = text ? JSON.parse(text) : {};
+        } catch {
+          const error = new Error(
+            `Réponse JSON invalide (HTTP ${response.status}).`
+          );
+          error.operation = operation;
+          error.status = response.status;
+          error.responseBody = text;
+          throw error;
+        }
+        if (!response.ok) {
+          const error = new Error(
+            payload.error || `Erreur HTTP ${response.status}.`
+          );
+          error.operation = operation;
+          error.status = response.status;
+          error.payload = payload;
+          throw error;
+        }
+        return payload;
+      }
+
+      form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        resultElement.hidden = true;
+        resultElement.textContent = "";
+
+        const file = fileInput.files[0];
+        if (!file) {
+          setStatus("Sélectionnez un fichier.", "error");
+          return;
+        }
+        if (!supportedTypes.has(file.type)) {
+          setStatus(`Type de fichier non pris en charge : ${file.type || "inconnu"}.`, "error");
+          return;
+        }
+        const fileLimit = file.type.startsWith("image/")
+          ? maxImageBytes
+          : maxUploadBytes;
+        if (file.size > fileLimit) {
+          setStatus(
+            file.type.startsWith("image/")
+              ? "Cette image dépasse la limite d’analyse de 4 Mio."
+              : "Cette vidéo dépasse la limite de téléversement de 100 Mio.",
+            "error"
+          );
+          return;
+        }
+
+        const apiUrl = apiUrlInput.value.trim().replace(/\/+$/, "");
+        submitButton.disabled = true;
+
+        try {
+          setStatus("Étape 1/3 : demande d’autorisation à l’API…");
+          const uploadInfoResponse = await fetch(`${apiUrl}/uploads`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ content_type: file.type }),
+          });
+          const uploadInfo = await readJsonResponse(
+            uploadInfoResponse,
+            "Demande d’autorisation"
+          );
+          if (!uploadInfo.upload_url || !uploadInfo.fields || !uploadInfo.s3_key) {
+            throw new Error("La réponse de /uploads est incomplète.");
+          }
+
+          setStatus("Étape 2/3 : envoi direct du fichier vers S3…");
+          const uploadForm = new FormData();
+          for (const [key, value] of Object.entries(uploadInfo.fields)) {
+            uploadForm.append(key, value);
+          }
+          uploadForm.append("file", file);
+          const s3Response = await fetch(uploadInfo.upload_url, {
+            method: "POST",
+            body: uploadForm,
+          });
+          if (!s3Response.ok) {
+            const details = await s3Response.text();
+            const error = new Error(
+              `Échec HTTP ${s3Response.status}. ${details}`
+            );
+            error.operation = "Téléversement S3";
+            error.status = s3Response.status;
+            error.responseBody = details;
+            throw error;
+          }
+
+          setStatus("Étape 3/3 : analyse du fichier…");
+          const analysisResponse = await fetch(`${apiUrl}/query`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              content_type: uploadInfo.content_type,
+              s3_key: uploadInfo.s3_key,
+            }),
+          });
+          const analysis = await readJsonResponse(analysisResponse, "Analyse");
+          resultElement.textContent = JSON.stringify(
+            {
+              s3_key: uploadInfo.s3_key,
+              analysis,
+            },
+            null,
+            2
+          );
+          resultElement.hidden = false;
+          setStatus("Téléversement et analyse terminés.", "success");
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          const requestId = error?.payload?.request_id;
+          const status = error?.status ? ` (HTTP ${error.status})` : "";
+          const requestReference = requestId
+            ? ` Référence à communiquer : ${requestId}.`
+            : "";
+          const networkHint =
+            error instanceof TypeError
+              ? " Vérifiez votre connexion et la configuration CORS de l’API/S3."
+              : "";
+
+          setStatus(
+            `${error?.operation ? `${error.operation} : ` : ""}${message}${status}${requestReference}${networkHint}`,
+            "error"
+          );
+          resultElement.textContent = JSON.stringify(
+            error?.payload || {
+              operation: error?.operation || "Client",
+              status: error?.status || null,
+              error: message,
+              response_body: error?.responseBody || undefined,
+            },
+            null,
+            2
+          );
+          resultElement.hidden = false;
+        } finally {
+          submitButton.disabled = false;
+        }
+      });
+    </script>
+  </body>
+</html>
