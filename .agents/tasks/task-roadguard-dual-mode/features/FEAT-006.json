@@ -1,0 +1,25 @@
+{
+  "id": "FEAT-006",
+  "type": "docs",
+  "description": "French submission artifacts (T13). Builder-center article declaring the Policy pattern, a demo script, the French architecture/decisions/demo/securite notes, and a refreshed root README. Depends on all prior features (it describes the finished dual-mode architecture, the Policy pattern, the UI+API run flow, and token revocation). Independent of nothing - it comes last so it describes what actually shipped.",
+  "status": "completed",
+  "steps": [
+    "Create docs/builder-center-article.md (French): declare the submission pattern = Policy; include ONE sentence framing the handler as 'the same Policy decision sitting in the tool path, like a guard' WITHOUT ticking Guardrails as a submission pattern; note the prototype limits (CORS '*', no auth).",
+    "Create docs/demo-script.md (French): a demo video script under 3 minutes, ~70% driving/conduite flow and ~20s on the QCM showing 'meme cerveau' (same Decider brain for both modes).",
+    "Create the French design-section-13 notes: docs/architecture.md (double circuit exam/situation, single Lambda backbone, declared Policy pattern, no agent loop in production), docs/decisions.md (settled decisions S1-S7 and their rationale), docs/demo.md (switch mode, upload a photo, read cards/scores, show debug + elapsed_ms), docs/securite.md (revoke the exposed HF token, read via env/Secrets Manager, CORS + auth to harden before production).",
+    "Update root README.md: pitch, the Policy pattern, and how to run the UI + API (build web/, deploy stacks, set VITE_API_URL, call /uploads then /query). Keep client-test.html as a documented fallback (do not delete it).",
+    "All artifacts strictly in French (NFR6)."
+  ],
+  "acceptance_criteria": [
+    "docs/builder-center-article.md, docs/demo-script.md, docs/architecture.md, docs/decisions.md, docs/demo.md, docs/securite.md all exist and are in French (AC16).",
+    "The article declares Policy as the submission pattern and does NOT tick Guardrails; proto limits (CORS '*', auth) are noted.",
+    "README documents how to run the UI + API and keeps client-test.html as a fallback.",
+    "The securite note documents HF token revocation and env/Secrets Manager handling."
+  ],
+  "verification": [
+    "uv run python -m pytest -q",
+    "uv run ruff check ."
+  ],
+  "blocked_reason": null,
+  "findings": "Docs-only feature complete. Created docs/builder-center-article.md, docs/demo-script.md, docs/architecture.md, docs/decisions.md, docs/demo.md, docs/securite.md (all French, NFR6). Article declares pattern=Policy, frames the handler as 'the same Policy decision in the tool path, like a guard' WITHOUT ticking Guardrails and WITHOUT creating patterns/guardrails/. README got a pitch + Policy-pattern section + 'Exécuter l'UI + l'API' steps (build web/ with VITE_API_URL, deploy ApiStack+WebStack, /uploads then /query); client-test.html kept and documented as a fallback (not deleted). securite.md documents HF token revocation + env/Secrets Manager + CORS/auth hardening.\n\nVerification: `uv run python -m pytest -q` => 30 passed. `uv run ruff check .` => 5 errors, ALL pre-existing in Python files from prior features (NOT touched by FEAT-006, which is docs-only): stacks/code/serve.py (I001 import order, F841 unused HF_TOKEN -- F841 is intentional per design §8 since huggingface_hub reads the env var; serve.py must keep reading it), te.py (I001; also note: te.py looks like a stray throwaway probe script committed at repo root), tests/test_latency_bench.py (RUF100 unused noqa: E402). Confirmed identical 5 errors exist at commit 75d21d8 (FEAT-005) with my docs stashed. MANUAL/LATER-STEP NOTE: the final integration gate (plan item 17) should clean these 5 lint errors (and consider removing/renaming te.py) so `uv run ruff check .` is clean repo-wide; they are out of scope for a docs-only feature. Browser/visual demo checks and live-endpoint elapsed_ms referenced in demo.md/demo-script.md are deploy-time/manual."
+}

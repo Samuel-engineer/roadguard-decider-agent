@@ -1,3 +1,72 @@
+# RoadGuard — analyse de scène routière en double mode
+
+RoadGuard regarde une scène routière (photo ou vidéo) et dit, intention par
+intention, ce qui est conforme au Code de la route. L'application a deux modes qui
+partagent un même cerveau :
+
+- **Examen** — un QCM du Code de la route, extrait de l'image, est tranché par le
+  Decider.
+- **Conduite** — au vu de la scène, le modèle de vision (Nova Lite) propose 3
+  intentions plausibles du conducteur ; le Decider juge la conformité de chacune.
+
+Les deux modes empruntent un **unique backbone Lambda** : `POST /query` → perception
+Bedrock Nova → récupération Knowledge Base → `decide(...)` sur l'endpoint SageMaker →
+réponse unifiée `{mode, cards, scene_summary, debug}`. Le seul point de branchement
+est le champ `mode` (`exam` par défaut, ou `situation`).
+
+## Pattern déclaré : Policy
+
+Le pattern de soumission est **Policy** : plutôt que de laisser le modèle décider
+librement, on fait classer la scène perçue par un **Decider** déterministe, sur un jeu
+de questions fermé (oui/non ou choix). Le modèle de vision ne juge jamais — il décrit
+et propose ; le Decider tranche. Le verdict est donc reproductible et auditable.
+
+La politique est packagée dans `patterns/closed-form-policy/`, avec deux variantes
+(`choice` pour l'examen, `noul` pour la situation) partageant un seul
+`ClosedFormPolicyHandler`. En production, la Lambda appelle `decide(...)` directement,
+sans boucle d'agent ; l'intégration à un agent Strands est démontrée (et exécutable)
+dans `examples/strands_agent.py`. `strands-agents` reste une dépendance de
+développement et n'entre jamais dans le bundle Lambda.
+
+Documentation détaillée dans [`docs/`](docs/) : [`architecture.md`](docs/architecture.md),
+[`decisions.md`](docs/decisions.md), [`securite.md`](docs/securite.md),
+[`demo.md`](docs/demo.md), le [script vidéo](docs/demo-script.md) et
+l'[article Builder Center](docs/builder-center-article.md).
+
+## Exécuter l'UI + l'API
+
+1. **Construire le front** dans `web/` en pointant `VITE_API_URL` vers l'URL `/query`
+   exposée par `ApiStack` (sortie `ApiEndpointUrl`) :
+
+   ```bash
+   cd web
+   VITE_API_URL="https://<api-id>.execute-api.<region>.amazonaws.com/query" npm install
+   VITE_API_URL="https://<api-id>.execute-api.<region>.amazonaws.com/query" npm run build
+   ```
+
+2. **Déployer les stacks** (le `BucketDeployment` de `WebStack` consomme `web/dist`) :
+
+   ```bash
+   uv run cdk synth WebStack
+   uv run cdk deploy ApiStack WebStack
+   ```
+
+3. Ouvrir le domaine CloudFront (sortie `WebDistributionDomain`). Dans l'UI, basculer
+   Examen / Conduite, téléverser un média, lire les cartes et les scores.
+
+Côté API, le flux est : `POST /uploads` (autorisation S3 présignée) → envoi direct du
+fichier vers S3 → `POST /query` avec `{mode, content_type, s3_key}`. Les détails de la
+procédure de déploiement, de CORS et du banc de latence sont dans les sections plus
+bas.
+
+> **Repli sans build : `client-test.html`.** Pour tester le flux sans construire le
+> front, ouvrir `client-test.html` dans un navigateur : la page sélectionne le mode,
+> demande une autorisation, envoie le fichier vers S3 et affiche les cartes, le résumé
+> de scène et le panneau debug de `/query`. Ce repli est conservé volontairement (ne
+> pas le supprimer).
+
+---
+
 # Flux d'analyse média
 
 Le flux recommandé utilise `POST /uploads` pour obtenir un formulaire S3 présigné,
