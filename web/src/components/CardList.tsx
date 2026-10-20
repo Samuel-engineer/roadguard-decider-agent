@@ -16,7 +16,14 @@ export default function CardList({ cards, mode, references }: CardListProps) {
       {cards.map((card, index) => {
         const kbExcerpt =
           mode === "situation" ? references[index]?.text : undefined;
-        return <Card key={card.id} card={card} kbExcerpt={kbExcerpt} />;
+        return (
+          <Card
+            key={card.id}
+            card={card}
+            kbExcerpt={kbExcerpt}
+            cardIndex={index}
+          />
+        );
       })}
     </section>
   );

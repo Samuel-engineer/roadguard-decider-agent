@@ -40,5 +40,13 @@ describe("Card", () => {
     expect(denied).not.toHaveClass("selected");
 
     expect(screen.getByText(excerpt)).toBeInTheDocument();
+
+    // The verdict word appears exactly once (hero adds no duplicate text node).
+    expect(screen.getAllByText("Autorisé")).toHaveLength(1);
+
+    // The probability gauge exposes its pinned accessible label.
+    expect(
+      screen.getByLabelText("Probabilité Autorisé : 80%"),
+    ).toBeInTheDocument();
   });
 });

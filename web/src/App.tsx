@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import Logo from "./components/Logo";
 import ModeToggle from "./components/ModeToggle";
 import Uploader from "./components/Uploader";
 import SceneSummary from "./components/SceneSummary";
@@ -143,10 +144,20 @@ export default function App() {
     status === "error" && error ? error : STATUS_MESSAGES[status];
 
   return (
-    <div className="app">
+    <div className="app" data-mode={mode}>
       <main className="app-main">
-        <h1>RoadGuard</h1>
-        <p>
+        <header className="app-header">
+          <div className="brand">
+            <Logo size={30} />
+            <h1 className="wordmark">
+              <span className="wm-road">Road</span>
+              <span className="wm-guard">Guard</span>
+            </h1>
+          </div>
+          <p className="tagline">Le copilote qui décide, règle en main.</p>
+        </header>
+
+        <p className="app-intro">
           Sélectionnez une image ou une vidéo, choisissez le mode, puis lancez
           l'analyse.
         </p>
@@ -174,16 +185,14 @@ export default function App() {
         </form>
 
         {busy ? (
-          <div
-            className="progress"
-            aria-label="Progression de l'analyse"
-          >
+          <ol className="progress" aria-label="Progression de l'analyse">
             {STAGES.map((stage) => (
-              <span key={stage.key} className={stageState(stage.key, status)}>
-                {stage.label}
-              </span>
+              <li key={stage.key} className={stageState(stage.key, status)}>
+                <span className="progress-dot" aria-hidden="true" />
+                <span className="progress-label">{stage.label}</span>
+              </li>
             ))}
-          </div>
+          </ol>
         ) : null}
 
         <div
@@ -196,16 +205,29 @@ export default function App() {
         </div>
 
         {result ? (
-          <>
-            <SceneSummary summary={result.scene_summary} />
+          <div className="results">
+            <div className="results-topline">
+              <SceneSummary summary={result.scene_summary} />
+              <span
+                className="latency-chip"
+                title="Temps de décision Strands Decider 2B"
+              >
+                <span className="latency-dot" aria-hidden="true" />
+                latence Decider&nbsp;<b>{result.debug.elapsed_ms}&nbsp;ms</b>
+              </span>
+            </div>
             <CardList
               cards={result.cards}
               mode={result.mode}
               references={result.debug.knowledge_references}
             />
             <DebugPanel debug={result.debug} />
-          </>
+          </div>
         ) : null}
+
+        <footer className="app-footer">
+          Propulsé par Amazon Bedrock (Nova) + Strands Decider 2B
+        </footer>
       </main>
     </div>
   );
