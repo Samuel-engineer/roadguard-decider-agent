@@ -92,6 +92,114 @@
         color: #475467;
         font-size: 0.92rem;
       }
+
+      fieldset {
+        margin: 18px 0 0;
+        padding: 12px 16px;
+        border: 1px solid #aab5c0;
+        border-radius: 6px;
+      }
+
+      legend {
+        font-weight: 650;
+      }
+
+      fieldset label {
+        display: inline-flex;
+        gap: 6px;
+        margin: 0 18px 0 0;
+        font-weight: 500;
+      }
+
+      #cards {
+        margin-top: 24px;
+      }
+
+      .card {
+        margin-top: 16px;
+        padding: 16px;
+        border: 1px solid #d8dee5;
+        border-radius: 10px;
+      }
+
+      .card-header {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        align-items: flex-start;
+      }
+
+      .card-title {
+        margin: 0;
+        font-size: 1.02rem;
+      }
+
+      .card-badge {
+        flex-shrink: 0;
+        padding: 3px 10px;
+        border-radius: 999px;
+        background: #eef1f5;
+        color: #475467;
+        font-size: 0.78rem;
+        font-weight: 650;
+      }
+
+      .option {
+        margin-top: 10px;
+        padding: 8px 10px;
+        border: 1px solid #e4e7ec;
+        border-radius: 8px;
+      }
+
+      .option.selected {
+        border-color: #155eef;
+        background: #f0f4ff;
+        box-shadow: inset 0 0 0 1px #155eef;
+      }
+
+      .option-head {
+        display: flex;
+        justify-content: space-between;
+        font-weight: 650;
+      }
+
+      .bar {
+        margin-top: 6px;
+        height: 8px;
+        border-radius: 999px;
+        background: #eef1f5;
+        overflow: hidden;
+      }
+
+      .bar > span {
+        display: block;
+        height: 100%;
+        background: #155eef;
+      }
+
+      .excerpt {
+        margin: 12px 0 0;
+        padding: 10px;
+        border-radius: 8px;
+        background: #f9fafb;
+        font-size: 0.9rem;
+      }
+
+      .scene {
+        margin-top: 24px;
+        padding: 14px;
+        border-radius: 8px;
+        background: #f0f4ff;
+      }
+
+      details {
+        margin-top: 20px;
+      }
+
+      summary {
+        cursor: pointer;
+        font-weight: 650;
+      }
     </style>
   </head>
   <body>
@@ -112,6 +220,18 @@
           required
         >
 
+        <fieldset>
+          <legend>Mode d’analyse</legend>
+          <label>
+            <input type="radio" name="mode" value="exam" checked>
+            Examen
+          </label>
+          <label>
+            <input type="radio" name="mode" value="situation">
+            Conduite
+          </label>
+        </fieldset>
+
         <label for="media-file">Image ou vidéo</label>
         <input
           id="media-file"
@@ -129,6 +249,13 @@
       </form>
 
       <div id="status" role="status" aria-live="polite"></div>
+
+      <section id="scene" class="scene" hidden></section>
+      <div id="cards"></div>
+      <details id="debug-wrap" hidden>
+        <summary>Détails techniques (debug)</summary>
+        <pre id="debug"></pre>
+      </details>
       <pre id="result" hidden></pre>
     </main>
 
@@ -152,10 +279,95 @@
       const submitButton = document.querySelector("#submit-button");
       const statusElement = document.querySelector("#status");
       const resultElement = document.querySelector("#result");
+      const sceneElement = document.querySelector("#scene");
+      const cardsElement = document.querySelector("#cards");
+      const debugWrap = document.querySelector("#debug-wrap");
+      const debugElement = document.querySelector("#debug");
 
       function setStatus(message, state = "") {
         statusElement.textContent = message;
         statusElement.dataset.state = state;
+      }
+
+      function clearResults() {
+        sceneElement.hidden = true;
+        sceneElement.textContent = "";
+        cardsElement.textContent = "";
+        debugWrap.hidden = true;
+        debugElement.textContent = "";
+        resultElement.hidden = true;
+        resultElement.textContent = "";
+      }
+
+      function renderCard(card, kbExcerpt) {
+        const article = document.createElement("article");
+        article.className = "card";
+
+        const header = document.createElement("div");
+        header.className = "card-header";
+        const title = document.createElement("h3");
+        title.className = "card-title";
+        title.textContent = card.title || "";
+        const badge = document.createElement("span");
+        badge.className = "card-badge";
+        badge.textContent = card.kind === "allow_deny" ? "Intention" : "Question";
+        header.append(title, badge);
+        article.append(header);
+
+        for (const option of card.options || []) {
+          const pct = Math.round((option.score || 0) * 100);
+          const wrap = document.createElement("div");
+          wrap.className = option.selected ? "option selected" : "option";
+          const head = document.createElement("div");
+          head.className = "option-head";
+          const label = document.createElement("span");
+          label.textContent = option.label;
+          const score = document.createElement("span");
+          score.textContent = `${pct}%`;
+          head.append(label, score);
+          const bar = document.createElement("div");
+          bar.className = "bar";
+          bar.setAttribute("role", "img");
+          bar.setAttribute("aria-label", `${option.label} : ${pct}%`);
+          const fill = document.createElement("span");
+          fill.style.width = `${pct}%`;
+          bar.append(fill);
+          wrap.append(head, bar);
+          article.append(wrap);
+        }
+
+        if (kbExcerpt) {
+          const excerpt = document.createElement("p");
+          excerpt.className = "excerpt";
+          excerpt.textContent = `Référence Code de la route : ${kbExcerpt}`;
+          article.append(excerpt);
+        }
+
+        cardsElement.append(article);
+      }
+
+      function renderAnalysis(analysis) {
+        const sceneSummary = analysis.scene_summary || "";
+        if (sceneSummary) {
+          sceneElement.textContent = sceneSummary;
+          sceneElement.hidden = false;
+        }
+
+        const references =
+          (analysis.debug && analysis.debug.knowledge_references) || [];
+        const cards = analysis.cards || [];
+        cards.forEach((card, index) => {
+          const kbExcerpt =
+            analysis.mode === "situation" && references[index]
+              ? references[index].text
+              : undefined;
+          renderCard(card, kbExcerpt);
+        });
+
+        if (analysis.debug) {
+          debugElement.textContent = JSON.stringify(analysis.debug, null, 2);
+          debugWrap.hidden = false;
+        }
       }
 
       async function readJsonResponse(response, operation) {
@@ -186,9 +398,10 @@
 
       form.addEventListener("submit", async (event) => {
         event.preventDefault();
-        resultElement.hidden = true;
-        resultElement.textContent = "";
+        clearResults();
 
+        const mode =
+          form.querySelector('input[name="mode"]:checked')?.value || "exam";
         const file = fileInput.files[0];
         if (!file) {
           setStatus("Sélectionnez un fichier.", "error");
@@ -255,20 +468,13 @@
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
+              mode,
               content_type: uploadInfo.content_type,
               s3_key: uploadInfo.s3_key,
             }),
           });
           const analysis = await readJsonResponse(analysisResponse, "Analyse");
-          resultElement.textContent = JSON.stringify(
-            {
-              s3_key: uploadInfo.s3_key,
-              analysis,
-            },
-            null,
-            2
-          );
-          resultElement.hidden = false;
+          renderAnalysis(analysis);
           setStatus("Téléversement et analyse terminés.", "success");
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error);
