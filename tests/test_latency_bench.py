@@ -138,5 +138,99 @@ class LatencyStatsTests(unittest.TestCase):
         self.assertIn("OK", buffer.getvalue())
 
 
+class LatencyMockModeTests(unittest.TestCase):
+    def test_main_mock_prints_synthetic_table(self):
+        buffer = io.StringIO()
+        with redirect_stdout(buffer):
+            exit_code = latency.main(["--mock", "--no-emit-metrics"])
+
+        output = buffer.getvalue()
+        self.assertEqual(exit_code, 0)
+        # Bandeau explicitement synthétique/illustratif.
+        self.assertIn("SYNTHÉTIQUES", output)
+        self.assertIn("ILLUSTRATIFS", output)
+        # Structure du tableau Markdown.
+        self.assertIn("p50", output)
+        self.assertIn("p95", output)
+        # Comparaison vs baseline Nova.
+        self.assertIn(latency.NOVA_BASELINE_LABEL, output)
+        self.assertIn(latency.DECIDER_LABEL, output)
+
+    def test_main_mock_emits_metrics_to_temp_path(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            target = Path(tmp) / "metrics.md"
+            buffer = io.StringIO()
+            with redirect_stdout(buffer):
+                exit_code = latency.main(
+                    ["--mock", "--emit-metrics", str(target), "--runs", "3"]
+                )
+
+            self.assertEqual(exit_code, 0)
+            self.assertTrue(target.is_file())
+            content = target.read_text(encoding="utf-8")
+            self.assertIn("SYNTHÉTIQUES", content)
+            self.assertIn("| mode |", content)
+            self.assertIn(latency.LIVE_PLACEHOLDER, content)
+
+    def test_format_markdown_table_mock_labels_baseline_illustrative(self):
+        stats_by_mode = {
+            "exam": latency.summarize([100.0, 200.0, 300.0]),
+            "situation": latency.summarize([150.0, 250.0, 350.0]),
+        }
+        table = latency.format_markdown_table(stats_by_mode, mock=True)
+
+        self.assertIn("p50", table)
+        self.assertIn("p95", table)
+        self.assertIn(latency.DECIDER_LABEL, table)
+        self.assertIn(latency.NOVA_BASELINE_LABEL, table)
+        # La baseline non mesurée est étiquetée illustratif, jamais chiffrée.
+        self.assertIn("illustratif", table)
+
+    def test_format_markdown_table_live_marks_baseline_na(self):
+        stats_by_mode = {"exam": latency.summarize([100.0, 200.0, 300.0])}
+        table = latency.format_markdown_table(stats_by_mode, mock=False)
+
+        self.assertIn("n/a", table)
+        self.assertNotIn("illustratif", table)
+
+
+class EmitMetricsTests(unittest.TestCase):
+    def test_emit_metrics_writes_markdown(self):
+        stats_by_mode = {
+            "exam": latency.summarize([100.0, 200.0, 300.0]),
+            "situation": latency.summarize([150.0, 250.0, 350.0]),
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            target = Path(tmp) / "metrics.md"
+            latency.write_metrics_markdown(
+                stats_by_mode, path=target, mock=False, runs=7
+            )
+
+            content = target.read_text(encoding="utf-8")
+            # Tableau Markdown.
+            self.assertIn("| mode |", content)
+            # Placeholder live.
+            self.assertIn(latency.LIVE_PLACEHOLDER, content)
+            # Commande de repro.
+            self.assertIn("uv run python bench/latency.py", content)
+            # Valeur de N reportée.
+            self.assertIn("7", content)
+            # Liste des variables d'environnement requises.
+            for env_var in ("DECIDER_ENDPOINT", "KNOWLEDGE_BASE_ID", "MEDIA_BUCKET"):
+                self.assertIn(env_var, content)
+
+    def test_emit_metrics_mock_banner_is_synthetic(self):
+        stats_by_mode = {"exam": latency.summarize([10.0, 20.0, 30.0])}
+        with tempfile.TemporaryDirectory() as tmp:
+            target = Path(tmp) / "metrics.md"
+            latency.write_metrics_markdown(
+                stats_by_mode, path=target, mock=True, runs=5
+            )
+
+            content = target.read_text(encoding="utf-8")
+            self.assertIn("SYNTHÉTIQUES", content)
+            self.assertIn("ILLUSTRATIFS", content)
+
+
 if __name__ == "__main__":
     unittest.main()
