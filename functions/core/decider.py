@@ -144,11 +144,16 @@ def _select_decider_options(
                     f"Le Decider a renvoyé une probabilité binaire invalide "
                     f"pour la question {question_key}."
                 )
-            selected_label = (
-                next(label for label in labels if label.casefold() == "oui")
-                if probability >= 0.5
-                else next(label for label in labels if label.casefold() == "non")
-            )
+            true_label = metadata.get("true_label")
+            false_label = metadata.get("false_label")
+            if true_label is not None and false_label is not None:
+                selected_label = true_label if probability >= 0.5 else false_label
+            else:
+                selected_label = (
+                    next(label for label in labels if label.casefold() == "oui")
+                    if probability >= 0.5
+                    else next(label for label in labels if label.casefold() == "non")
+                )
             answer["threshold"] = 0.5
             answer["selected_options"] = [selected_label]
         else:
@@ -197,14 +202,21 @@ def _invoke_decider_with_client(
     runtime_client: Any,
     *,
     request_id: str | None = None,
-) -> Any:
+    mode: str = "exam",
+) -> tuple[Any, int]:
+    if mode == "situation":
+        from .circuits.situation import _build_situation_questions
+
+        questions, question_metadata = _build_situation_questions(facts)
+    else:
+        questions, question_metadata = _build_decider_questions(facts)
+
     rag_context = "\n".join(reference.get("text", "") for reference in references)
     state_content = (
         f"Observations : {json.dumps(facts, ensure_ascii=False)}\n"
         f"Documentation : {rag_context}"
     )
 
-    questions, question_metadata = _build_decider_questions(facts)
     payload = {
         "state": state_content,
         "questions": questions,
@@ -236,11 +248,12 @@ def _invoke_decider_with_client(
             round((time.monotonic() - started_at) * 1000),
         )
         raise
+    elapsed_ms = round((time.monotonic() - started_at) * 1000)
     logger.info(
         "decider_invoke_completed request_id=%s endpoint=%s elapsed_ms=%d",
         request_id or "unknown",
         endpoint_name,
-        round((time.monotonic() - started_at) * 1000),
+        elapsed_ms,
     )
     raw_body = response["Body"].read()
     logger.info(
@@ -254,4 +267,28 @@ def _invoke_decider_with_client(
         raise UpstreamError(
             "Le Decider a renvoyé une réponse qui n'est pas un JSON valide."
         ) from error
-    return _select_decider_options(decision, question_metadata)
+    return _select_decider_options(decision, question_metadata), elapsed_ms
+
+
+def decide(
+    facts: dict[str, Any],
+    references: list[dict[str, Any]],
+    runtime_client: Any,
+    *,
+    request_id: str | None = None,
+    mode: str = "exam",
+) -> tuple[Any, int]:
+    """Appel Decider partagé : renvoie ``(decision, elapsed_ms)``.
+
+    Sélectionne le constructeur de questions selon ``mode`` (``exam`` ->
+    ``_build_decider_questions`` ; ``situation`` -> ``_build_situation_questions``),
+    construit l'unique payload ``{state, questions}`` et effectue un seul
+    ``invoke_endpoint``.
+    """
+    return _invoke_decider_with_client(
+        facts,
+        references,
+        runtime_client,
+        request_id=request_id,
+        mode=mode,
+    )

@@ -5,6 +5,9 @@ import unittest
 from unittest.mock import patch
 
 from functions import main
+from functions.core.circuits.situation import _build_situation_questions
+from functions.core.decider import decide
+from functions.core.errors import UpstreamError
 
 
 class DeciderPayloadTests(unittest.TestCase):
@@ -165,6 +168,71 @@ class DeciderPayloadTests(unittest.TestCase):
         self.assertEqual(invoke_kwargs["EndpointName"], "test-endpoint")
         self.assertIsInstance(invoke_kwargs["Body"], bytes)
         self.assertEqual(result["answers"]["1"]["selected_options"], ["Option A"])
+
+    def test_builds_three_noul_questions_for_situation_intentions(self):
+        facts = {
+            "intentions": [
+                "S'engager dans le carrefour",
+                "Céder le passage au piéton",
+                "Se rabattre sur la voie de droite",
+            ]
+        }
+
+        questions, metadata = _build_situation_questions(facts)
+
+        self.assertEqual(len(questions), 3)
+        self.assertTrue(all(q["type"] == "noul" for q in questions.values()))
+        self.assertIn("S'engager dans le carrefour", questions["1"]["instructions"])
+        self.assertEqual(metadata["1"]["mode"], "binary")
+        self.assertEqual(metadata["1"]["true_label"], "Autorisé")
+        self.assertEqual(metadata["1"]["false_label"], "Interdit")
+
+    def test_situation_decide_calls_endpoint_once_and_selects_autorise(self):
+        facts = {
+            "intentions": [
+                "S'engager dans le carrefour",
+                "Céder le passage au piéton",
+                "Se rabattre sur la voie de droite",
+            ]
+        }
+        endpoint_response = {
+            "answers": {
+                "1": {"type": "noul", "noul": 0.9},
+                "2": {"type": "noul", "noul": 0.6},
+                "3": {"type": "noul", "noul": 0.2},
+            }
+        }
+
+        with (
+            patch.dict(os.environ, {"DECIDER_ENDPOINT": "test-endpoint"}),
+            patch.object(
+                main._SAGEMAKER_RUNTIME,
+                "invoke_endpoint",
+                return_value={
+                    "Body": io.BytesIO(json.dumps(endpoint_response).encode())
+                },
+            ) as invoke_endpoint,
+        ):
+            decision, elapsed_ms = decide(
+                facts, [], main._SAGEMAKER_RUNTIME, mode="situation"
+            )
+
+        self.assertEqual(invoke_endpoint.call_count, 1)
+        self.assertIsInstance(elapsed_ms, int)
+        self.assertEqual(decision["answers"]["1"]["selected_options"], ["Autorisé"])
+        self.assertEqual(decision["answers"]["2"]["selected_options"], ["Autorisé"])
+        self.assertEqual(decision["answers"]["3"]["selected_options"], ["Interdit"])
+
+    def test_situation_with_wrong_intention_count_raises_upstream_error(self):
+        facts = {
+            "intentions": [
+                "S'engager dans le carrefour",
+                "Céder le passage au piéton",
+            ]
+        }
+
+        with self.assertRaises(UpstreamError):
+            _build_situation_questions(facts)
 
 
 if __name__ == "__main__":

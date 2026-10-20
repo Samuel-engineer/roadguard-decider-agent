@@ -36,17 +36,7 @@ def _retrieval_question_context(facts: dict[str, Any]) -> str:
     return "\n".join(parts)
 
 
-def _retrieve_knowledge(facts: dict[str, Any]) -> list[dict[str, Any]]:
-    visual_context = json.dumps(
-        {
-            key: value
-            for key, value in facts.items()
-            if key not in {"sub_questions", "question_type"}
-        },
-        ensure_ascii=False,
-    )
-    question_context = _retrieval_question_context(facts)
-    query = "\n".join(part for part in (question_context, visual_context) if part)
+def _run_retrieval(query: str) -> list[dict[str, Any]]:
     response = _BEDROCK_AGENT_RUNTIME.retrieve(
         knowledgeBaseId=os.environ["KNOWLEDGE_BASE_ID"],
         retrievalQuery={"text": query[:20000]},
@@ -64,3 +54,49 @@ def _retrieve_knowledge(facts: dict[str, Any]) -> list[dict[str, Any]]:
             }
         )
     return references
+
+
+def _retrieve_knowledge_exam(facts: dict[str, Any]) -> list[dict[str, Any]]:
+    visual_context = json.dumps(
+        {
+            key: value
+            for key, value in facts.items()
+            if key not in {"sub_questions", "question_type"}
+        },
+        ensure_ascii=False,
+    )
+    question_context = _retrieval_question_context(facts)
+    query = "\n".join(part for part in (question_context, visual_context) if part)
+    return _run_retrieval(query)
+
+
+def _retrieve_knowledge_situation(facts: dict[str, Any]) -> list[dict[str, Any]]:
+    parts: list[str] = []
+
+    scene_summary = facts.get("scene_summary")
+    if isinstance(scene_summary, str) and scene_summary.strip():
+        parts.append(scene_summary.strip())
+
+    for key in ("keywords", "signals"):
+        values = facts.get(key)
+        if isinstance(values, list):
+            for value in values:
+                if isinstance(value, str) and value.strip():
+                    parts.append(value.strip())
+
+    intentions = facts.get("intentions")
+    if isinstance(intentions, list):
+        for intention in intentions:
+            if isinstance(intention, str) and intention.strip():
+                parts.append(intention.strip())
+
+    query = "\n".join(parts)
+    return _run_retrieval(query)
+
+
+def _retrieve_knowledge(
+    facts: dict[str, Any], *, mode: str = "exam"
+) -> list[dict[str, Any]]:
+    if mode == "situation":
+        return _retrieve_knowledge_situation(facts)
+    return _retrieve_knowledge_exam(facts)

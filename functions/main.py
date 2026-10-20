@@ -6,31 +6,51 @@ from typing import Any
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
+# Frozen 19-name re-export contract (design section 1). Tests patch these
+# attributes on this module, so the list is preserved and extended, never shrunk.
 __all__ = [
     "_SAGEMAKER_RUNTIME",
     "_build_decider_questions",
+    "_build_situation_questions",
     "_create_upload_request",
     "_get_media_key",
+    "_invoke_decider",
     "_invoke_decider_with_client",
     "_media_metadata",
     "_parse_request",
     "_response",
     "_retrieve_knowledge",
+    "_retrieve_knowledge_exam",
+    "_retrieve_knowledge_situation",
     "_select_decider_options",
+    "build_response",
+    "decide",
     "extract_facts_from_media",
     "lambda_handler",
+    "logger",
 ]
 
 if __package__:
     from .core import aws
+    from .core.circuits.present import build_response
+    from .core.circuits.situation import (
+        SITUATION_SYSTEM_VLM_PROMPT,
+        SITUATION_TOOL_CONFIG,
+        _build_situation_questions,
+    )
     from .core.decider import (
         _build_decider_questions,
         _invoke_decider_with_client,
         _select_decider_options,
+        decide,
     )
     from .core.errors import RequestError, UpstreamError
     from .core.http import _parse_request, _response
-    from .core.knowledge import _retrieve_knowledge
+    from .core.knowledge import (
+        _retrieve_knowledge,
+        _retrieve_knowledge_exam,
+        _retrieve_knowledge_situation,
+    )
     from .core.media import (
         _get_media_key,
         _media_metadata,
@@ -39,14 +59,25 @@ if __package__:
     from .core.uploads import _create_upload_request
 else:
     from core import aws
+    from core.circuits.present import build_response
+    from core.circuits.situation import (
+        SITUATION_SYSTEM_VLM_PROMPT,
+        SITUATION_TOOL_CONFIG,
+        _build_situation_questions,
+    )
     from core.decider import (
         _build_decider_questions,
         _invoke_decider_with_client,
         _select_decider_options,
+        decide,
     )
     from core.errors import RequestError, UpstreamError
     from core.http import _parse_request, _response
-    from core.knowledge import _retrieve_knowledge
+    from core.knowledge import (
+        _retrieve_knowledge,
+        _retrieve_knowledge_exam,
+        _retrieve_knowledge_situation,
+    )
     from core.media import (
         _get_media_key,
         _media_metadata,
@@ -61,13 +92,16 @@ def _invoke_decider(
     facts: dict[str, Any],
     references: list[dict[str, Any]],
     request_id: str | None = None,
+    **kwargs: Any,
 ) -> Any:
-    return _invoke_decider_with_client(
+    decision, _elapsed_ms = decide(
         facts,
         references,
         _SAGEMAKER_RUNTIME,
         request_id=request_id,
+        **kwargs,
     )
+    return decision
 
 
 def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
@@ -101,26 +135,42 @@ def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
             return _response(200, upload_request)
 
         stage = "validate_media_request"
+        mode = request.get("mode", "exam")
+        if mode not in {"exam", "situation"}:
+            raise RequestError("Mode inconnu. Utilisez exam ou situation.")
         media_type, _, content_type = _media_metadata(request)
         media_key = _get_media_key(request)
         logger.info(
-            "media_analysis_started request_id=%s media_type=%s content_type=%s s3_key=%s",
+            "media_analysis_started request_id=%s mode=%s media_type=%s "
+            "content_type=%s s3_key=%s",
             request_id,
+            mode,
             media_type,
             content_type,
             media_key,
         )
         stage = "extract_visual_facts"
-        facts = extract_facts_from_media(
-            os.environ["MEDIA_BUCKET"],
-            media_key,
-            media_type,
-            content_type,
-            "le json :",
-        )
+        if mode == "situation":
+            facts = extract_facts_from_media(
+                os.environ["MEDIA_BUCKET"],
+                media_key,
+                media_type,
+                content_type,
+                "le json :",
+                tool_config=SITUATION_TOOL_CONFIG,
+                system_prompt=SITUATION_SYSTEM_VLM_PROMPT,
+            )
+        else:
+            facts = extract_facts_from_media(
+                os.environ["MEDIA_BUCKET"],
+                media_key,
+                media_type,
+                content_type,
+                "le json :",
+            )
         logger.info("visual_facts_extracted request_id=%s", request_id)
         stage = "retrieve_knowledge"
-        references = _retrieve_knowledge(facts)
+        references = _retrieve_knowledge(facts, mode=mode)
         logger.info(
             "knowledge_retrieved request_id=%s reference_count=%d "
             "decider_state_context_chars=%d",
@@ -136,17 +186,18 @@ def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
             request_id,
             remaining_ms if remaining_ms is not None else "unknown",
         )
-        decision = _invoke_decider(facts, references, request_id=request_id)
+        decision, elapsed_ms = decide(
+            facts,
+            references,
+            _SAGEMAKER_RUNTIME,
+            request_id=request_id,
+            mode=mode,
+        )
         logger.info("media_analysis_completed request_id=%s", request_id)
 
         return _response(
             200,
-            {
-                "decision": decision,
-                "visual_facts": facts,
-                "knowledge_references": references,
-                "media_key": media_key,
-            },
+            build_response(mode, facts, references, decision, media_key, elapsed_ms),
         )
     except RequestError as error:
         logger.warning(
