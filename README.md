@@ -95,3 +95,67 @@ dépend de l'image Docker `strands-decider`.
 > production, restreignez les origines aux domaines de l'application et ajoutez
 > l'authentification et les protections contre l'abus. Une URL présignée est un
 > jeton porteur temporaire: ne la journalisez pas et ne la partagez pas.
+
+## Hébergement de l'interface React (WebStack) et déploiement
+
+`WebStack` (`stacks/web_stack.py`) sert l'application React depuis un bucket S3
+privé (tout accès public bloqué) derrière une distribution CloudFront avec
+Origin Access Control. Les erreurs 403/404 sont réécrites vers `/index.html`
+(statut 200) pour le routage SPA côté client. Le stack publie le domaine CloudFront
+via le `CfnOutput` `WebDistributionDomain`.
+
+Flux de déploiement :
+
+1. Construire le bundle front dans `web/` AVANT la synthèse (le build n'est pas
+   lancé pendant `cdk synth` pour garder la synthèse hermétique). `VITE_API_URL`
+   doit pointer vers l'URL `/query` exposée par `ApiStack` (sortie
+   `ApiEndpointUrl`) :
+
+   ```bash
+   cd web
+   VITE_API_URL="https://<api-id>.execute-api.<region>.amazonaws.com/query" npm install
+   VITE_API_URL="https://<api-id>.execute-api.<region>.amazonaws.com/query" npm run build
+   ```
+
+   `web/dist` doit exister avant `cdk synth WebStack` / `cdk deploy WebStack`
+   (c'est la source du `BucketDeployment`).
+
+2. Synthétiser puis déployer :
+
+   ```bash
+   uv run cdk synth WebStack
+   uv run cdk deploy ApiStack WebStack
+   ```
+
+3. Récupérer le domaine CloudFront dans la sortie `WebDistributionDomain` et
+   ouvrir l'application dans le navigateur.
+
+### CORS vis-à-vis de l'origine CloudFront (NFR5)
+
+Pour le hackathon, `ApiStack` conserve `allow_origins=['*']`. Restreindre
+dynamiquement l'origine au domaine de la distribution CloudFront créerait une
+dépendance circulaire au déploiement (`ApiStack` dépendrait du domaine généré par
+`WebStack`, alors que l'URL de l'API est elle-même nécessaire au build front).
+En production, remplacez `['*']` par le domaine CloudFront exact
+(`https://<distribution>.cloudfront.net`) dans la configuration CORS d'`ApiStack`,
+une fois ce domaine connu. Il s'agit d'une limitation assumée du prototype.
+
+### Option de repli : Lambda Function URL
+
+Le banc `bench/latency.py` échoue si le p95 horloge atteint le plafond de 29 s de
+l'intégration API Gateway. Si la latence s'en approche, une OPTION de repli (non
+construite, S7) consiste à exposer la même Lambda via une Function URL (plafond de
+60 s) sans changer le code. Ce n'est qu'une piste documentée.
+
+### Banc de latence
+
+```bash
+uv run python bench/latency.py --api <url> --image <path>
+```
+
+Le script enchaîne `/uploads` -> S3 -> `/query` N fois (5 par défaut) par mode,
+relève la durée horloge et la mesure serveur `debug.elapsed_ms`, imprime
+min/p50/p95 et un mini tableau comparé à « Nova décide tout », puis sort en code
+non nul si le p95 atteint 29 s. Sans `--api`/`--image` (ou si l'image est absente),
+il saute proprement. La mesure réelle contre le plafond de 29 s (NFR2) ne peut se
+faire que contre une API déployée.

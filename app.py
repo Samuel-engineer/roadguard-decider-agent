@@ -6,6 +6,7 @@ from stacks.knowledge_base_stack import KnowledgeBaseStack
 from stacks.opensearch_stack import OpenSearchStack
 from stacks.sagemarker_stack import SageMakerInferenceStack
 from stacks.stockage_stack import StockageStack
+from stacks.web_stack import WebStack
 
 env = cdk.Environment(**get_environment_account())
 
@@ -33,5 +34,10 @@ api_stack = ApiStack(
     decider_endpoint=decider_stack.endpoint.attr_endpoint_name,
     env=env,
 )
+
+# Hébergement statique de l'UI React (S3 privé + CloudFront). Nécessite un
+# `npm run build` préalable dans web/ ; VITE_API_URL doit pointer vers l'URL
+# /query exposée par ApiStack (voir README).
+web_stack = WebStack(app, "WebStack", env=env)
 
 app.synth()

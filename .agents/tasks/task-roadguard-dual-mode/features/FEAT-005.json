@@ -1,0 +1,27 @@
+{
+  "id": "FEAT-005",
+  "type": "feat",
+  "description": "S3 + CloudFront hosting stack (T11) + latency bench (T12). A new CDK stack serves the built React app from a private S3 bucket fronted by CloudFront (OAC, SPA error routing), wired into app.py; plus an optional latency bench script that times the situation chain end-to-end and guards the 29s API Gateway cap. Depends on FEAT-004 (the web/dist build is the BucketDeployment source) and FEAT-002 (the bench calls /query and reads debug.elapsed_ms). Independent of FEAT-003.",
+  "status": "completed",
+  "steps": [
+    "Create stacks/web_stack.py (WebStack): a private S3 bucket (block public access) + a CloudFront distribution with Origin Access Control, default root object index.html, SPA error routing (403/404 -> /index.html with 200), a BucketDeployment of the prebuilt web/dist, and a CfnOutput of the distribution domain. Follow the bucket construction style in stacks/stockage_stack.py. Note in a comment that `npm run build` in web/ is a prerequisite run before synth (not inside synth, to keep it hermetic).",
+    "app.py: instantiate WebStack after the existing stacks (import from stacks.web_stack). Document in README how VITE_API_URL is set at deploy time (the API Gateway /query URL from ApiStack's CfnOutput).",
+    "CORS: verify API Gateway CORS against the CloudFront origin. Keep api_stack.py allow_origins=['*'] for the hackathon and document the production tightening to the CloudFront distribution domain in the README (NFR5). If tightening to the real origin is feasible without a deploy-time circular dependency, do it; otherwise document '*' as a proto limitation.",
+    "Create bench/latency.py (optional script): given an API base URL + sample image, run the /uploads -> S3 -> /query flow N times (default 5) per mode, record wall-clock per call AND the server-measured debug.elapsed_ms, print min/median/p50/p95 and a mini latency table vs 'Nova decides everything', and exit non-zero if p95 >= 29000 ms. Make it skip cleanly (clear message, zero or skip exit) if the endpoint/env is absent. Document that if p95 approaches 29s the switch is a Lambda Function URL (60s, same code) as an OPTION only, NOT built (S7). Run via `uv run python bench/latency.py --api <url> --image <path>`.",
+    "Add a test that the bench's stats logic runs against a mocked Decider/response and prints p50/p95, and skips cleanly when the endpoint is absent. Confirm (grep) the full SageMaker dump removal from FEAT-001 still holds.",
+    "README.md: document the deploy flow (build web/, synth/deploy WebStack, wire VITE_API_URL) and the Function-URL fallback option."
+  ],
+  "acceptance_criteria": [
+    "`uv run cdk synth WebStack` produces a bucket + a CloudFront distribution (AC14 infra).",
+    "The bench runs against a mocked Decider and prints p50/p95 stats, exits non-zero when p95 >= 29000 ms, and skips cleanly if the endpoint is absent (AC15).",
+    "CORS behavior is verified/documented against the CloudFront origin (NFR5).",
+    "No logger.info(response) full dump remains in decider.py (grep)."
+  ],
+  "verification": [
+    "uv run cdk synth WebStack",
+    "uv run python -m pytest -q",
+    "uv run ruff check stacks bench"
+  ],
+  "blocked_reason": null,
+  "findings": "DONE. WebStack (stacks/web_stack.py): private S3 bucket (BLOCK_ALL) + CloudFront Distribution with OAC (origins.S3BucketOrigin.with_origin_access_control), default_root_object=index.html, SPA error routing 403/404 -> /index.html (200), BucketDeployment of web/dist (WEB_DIST_DIR), CfnOutput WebDistributionDomain; wired into app.py after ApiStack. `cdk synth WebStack` succeeds and emits the bucket + distribution (AC14 verified). bench/latency.py: /uploads -> S3 -> /query loop, N=5 default per mode (exam+situation), records wall-clock AND debug.elapsed_ms, prints min/p50/p95/max + mini table vs 'Nova decides everything' (n/a column), exits 1 if p95 >= 29000 ms, skips cleanly (exit 0) if --api/--image absent or image missing. tests/test_latency_bench.py (8 tests) covers summarize/percentile, run_once reading server elapsed_ms from a mocked Decider response, format_table p50/p95, non-zero exit at the cap and clean skip. Full test suite 30 passed. decider.py full SageMaker response dump confirmed ABSENT in the worktree (grep clean). CORS: kept api_stack.py allow_origins=['*'] for the hackathon; tightening to the CloudFront domain would create a deploy-time circular dependency (ApiStack would need WebStack's generated domain while the API URL is itself needed for the front build), documented as a proto limitation with the production fix in README (NFR5). TOOLING NOTES for later steps: (1) cdk CLI is NOT reachable via `uv run cdk` in this env (uv: Failed to spawn: cdk); use the Node CLI `cdk synth <Stack>` (aws-cdk 2.1145.0 on PATH, cdk.json app='uv run app.py'). (2) `cdk synth WebStack` requires web/dist to exist first - run `npm run build` in web/ (node_modules already installed; build is hermetic, NOT run inside synth). (3) `uv run ruff check stacks bench` still reports 7 PRE-EXISTING errors in stacks/code/serve.py (unused HF_TOKEN var, blind except) last touched by FEAT-001 commit b03894a - OUT OF SCOPE for FEAT-005 and left untouched; my new files (web_stack.py, bench/latency.py, app.py) are ruff-clean. MANUAL/DEPLOY-TIME: live p95 vs the 29s cap (NFR2) and browser visual checks can only be verified against a deployed CloudFront+API; the Function-URL (60s) fallback is documented as an OPTION only, NOT built (S7)."
+}
