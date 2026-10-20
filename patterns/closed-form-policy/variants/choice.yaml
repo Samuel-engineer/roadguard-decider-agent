@@ -1,0 +1,21 @@
+# Variant "choice" — driving-exam QCM instantiation.
+#
+# The VLM produces exam facts (question_type + sub_questions with candidates);
+# the Decider answers each sub-question as a multiple-choice classification.
+variant: choice
+mode: exam
+question_type: choice
+handler:
+  class: ClosedFormPolicyHandler
+  kwargs:
+    variant: choice
+# Shape of the facts this variant classifies (produced by the exam circuit VLM):
+facts_schema:
+  question_type: single_choice | multiple_choice
+  sub_questions:
+    - text: "Libellé de la sous-question"
+      candidates:
+        - { id: "A", label: "Option A" }
+        - { id: "B", label: "Option B" }
+# Cards emitted: kind=choice, one per sub-question, options scored by the
+# Decider probabilities, `selected` by membership in selected_options.

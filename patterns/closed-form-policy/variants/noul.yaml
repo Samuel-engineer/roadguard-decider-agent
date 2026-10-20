@@ -1,0 +1,25 @@
+# Variant "noul" — driving-situation instantiation.
+#
+# The VLM perceives the scene and proposes EXACTLY 3 free-form driver
+# intentions (it never judges legality). The Decider answers one yes/no
+# ("noul") question per intention: conforme / non conforme au Code de la route.
+variant: noul
+mode: situation
+question_type: noul
+handler:
+  class: ClosedFormPolicyHandler
+  kwargs:
+    variant: noul
+# Shape of the facts this variant classifies (produced by the situation circuit VLM):
+facts_schema:
+  scene_summary: "Description physique objective de la scène."
+  keywords: ["..."]
+  signals: ["..."]
+  road_users: ["..."]
+  intentions:
+    - "Intention 1 (libre, en français)"
+    - "Intention 2"
+    - "Intention 3"   # exactement 3, sinon UpstreamError
+# Cards emitted: kind=allow_deny, one per intention, two options
+# "Autorisé" (score=noul) / "Interdit" (score=1-noul); `selected` by membership
+# in selected_options.

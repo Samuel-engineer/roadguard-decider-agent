@@ -1,0 +1,30 @@
+# Declared Strands Policy pattern (closed-form)
+#
+# One recipe, one handler, two variants. The handler (ClosedFormPolicyHandler)
+# classifies a perceived scene through the SAME closed-form Decider as
+# production by calling the shared `decide(...)`. It plugs into a Strands agent
+# as an InterventionHandler (before_tool_call). The two variants differ only by
+# the circuit mode passed to `decide`.
+name: closed-form-policy
+description: >-
+  Politique déclarée en forme fermée pour un agent Strands : classe une scène
+  perçue via le Decider partagé (mêmes questions, même decide() qu'en
+  production) et autorise ou refuse l'exécution de l'outil.
+handler:
+  module: handler
+  class: ClosedFormPolicyHandler
+  # Confirmed against strands-agents 1.61.1:
+  base_class: strands.interventions.InterventionHandler
+  hook_method: before_tool_call
+  actions: [strands.interventions.Proceed, strands.interventions.Deny]
+variants:
+  - name: choice
+    mode: exam
+    file: variants/choice.yaml
+    question_type: choice
+    description: Examen du Code de la route (QCM à choix multiples).
+  - name: noul
+    mode: situation
+    file: variants/noul.yaml
+    question_type: noul
+    description: Situation de conduite (un oui/non par intention proposée).
