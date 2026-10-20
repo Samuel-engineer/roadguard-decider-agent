@@ -87,7 +87,7 @@ analyse.
 La Lambda envoie au endpoint SageMaker un JSON de la forme
 `{"state": "...", "questions": {"1": {"type": "choice", "instructions": "...", "criteria": {"Option A": "Candidat A", "Option B": "Candidat B"}}}}`.
 Le modèle visuel est configuré par `VISION_MODEL_ID` (par défaut
-`us.amazon.nova-pro-v1:0`). Le schéma exact de décision renvoyé par le endpoint
+`us.amazon.nova-lite-v1:0`). Le schéma exact de décision renvoyé par le endpoint
 dépend de l'image Docker `strands-decider`.
 
 > Les routes API n'ont pas encore d'authentification. La configuration CORS autorise

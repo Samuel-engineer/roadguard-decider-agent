@@ -228,8 +228,6 @@ def _invoke_decider_with_client(
             Accept="application/json",
             Body=request_body,
         )
-
-        logger.info(response)
     except Exception:
         logger.exception(
             "decider_invoke_failed request_id=%s endpoint=%s elapsed_ms=%d",

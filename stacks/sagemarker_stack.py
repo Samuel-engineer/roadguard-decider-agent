@@ -3,9 +3,18 @@ from aws_cdk import aws_ecr_assets as ecr_assets
 from aws_cdk import aws_iam as iam
 from aws_cdk import aws_sagemaker as sagemaker
 from constructs import Construct
-from config import Settings
+
+from .config import Settings
+
 
 class SageMakerInferenceStack(Stack):
+    """Stack SageMaker temps réel pour le Decider.
+
+    SÉCURITÉ — Jeton Hugging Face : le jeton HF exposé précédemment DOIT être
+    révoqué sur Hugging Face. Fournis-le uniquement via `.env`/AWS Secrets Manager
+    (lu par `Settings.hf_token`). Ne le committe jamais et ne le journalise jamais.
+    """
+
     def __init__(self, scope: Construct, construct_id: str, **kwargs):
         super().__init__(scope, construct_id, **kwargs)
 

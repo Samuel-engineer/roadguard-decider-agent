@@ -98,7 +98,7 @@ tool_config = {
 SYSTEM_VLM_PROMPT = """Tu es le Moteur de Perception Visuelle de RoadGuard-Decider, un agent d'assistance à la conduite et d'évaluation réglementaire du Code de la route.
 
 TON OBJECTIF :
-Analyser l'image de conduite fournie et renseigner rigoureusement l'outil structuré `submit_road_analysis`.
+Analyser l'image de conduite fournie et renseigner rigoureusement l'outil structuré `extract_road_data`.
 
 - RÈGLE FONDAMENTALE :
   * Chaque lettre visible à l'écran (A, B, C, D) correspond à UN UNIQUE candidat dans le JSON.
@@ -181,7 +181,7 @@ def extract_facts_from_media(
     model_id: str | None = None,
 ) -> dict[str, Any]:
     """Analyse un média S3 avec Bedrock et renvoie les faits structurés."""
-    model_id = model_id or os.environ.get("VISION_MODEL_ID", "amazon.nova-lite-v1:0")
+    model_id = model_id or os.environ.get("VISION_MODEL_ID", "us.amazon.nova-lite-v1:0")
     normalized_format = content_type.split("/", 1)[-1].lower()
     if normalized_format in ("jpg", "pjpeg"):
         normalized_format = "jpeg"

@@ -1,0 +1,34 @@
+{
+  "id": "FEAT-001",
+  "type": "fix",
+  "description": "Foundation bugfixes + test tooling (T1 bugfix parts, T8, T9). Fix the broken CDK config so `cdk synth` can run, align the vision model id to the single canonical value us.amazon.nova-lite-v1:0, fix the VLM tool-name mismatch, remove the stray Decider full-response log dump, harden/document the HF token, and add pytest to the dev group so `uv run python -m pytest` works. No circuit refactor yet - these are isolated, low-risk fixes that unblock everything else. Independent of FEAT-002..006 except that they build on a green, synthesizable base.",
+  "status": "completed",
+  "steps": [
+    "pyproject.toml: add `pytest>=8` under [dependency-groups] dev (the design/ACs run `uv run python -m pytest` but pytest is not installed; the existing unittest-style tests run unchanged under pytest). Run `uv sync`.",
+    "stacks/config.py: rewrite the broken module. Use `from dotenv import load_dotenv` (currently `loadenv` - wrong), call `load_dotenv()`, import `field` from dataclasses, and set `hf_token: str = field(default_factory=lambda: os.getenv('HF_TOKEN', ''))` (currently `os.getenv(HF_TOKEN)` references an undefined name). Keep `vision_model_id = 'us.amazon.nova-lite-v1:0'`, `embedding_dimension = 1024`, `embedding_model_id = 'amazon.titan-embed-text-v2:0'`. Keep the dataclass frozen.",
+    "stacks/sagemarker_stack.py: change line 6 `from config import Settings` to `from .config import Settings` (the bare import resolves to the ROOT config.py which has no Settings; api_stack.py already uses the relative form). Add a docstring/comment noting the exposed HF token MUST be revoked on Hugging Face and supplied via .env/Secrets Manager, never committed or logged. Leave the `HF_TOKEN: cfg.hf_token` container env wiring in place.",
+    "stacks/code/serve.py: do NOT remove any literal (none exists - it already reads `HF_TOKEN = os.getenv('HF_TOKEN')`) and do NOT add an inspect.signature branch (StrandsDeciderModel.load(model_id) takes no token param; huggingface_hub reads HF_TOKEN from the env automatically). Add a short comment that the token comes from the env and is never logged.",
+    "functions/core/media.py: change the `extract_facts_from_media` model_id fallback default from `amazon.nova-lite-v1:0` to `us.amazon.nova-lite-v1:0` (add the us. prefix so the Lambda default matches the inference-profile id used in api_stack.py IAM).",
+    "functions/core/media.py: fix the VLM tool-name mismatch - the prompt SYSTEM_VLM_PROMPT references `submit_road_analysis` while tool_config uses `extract_road_data`. Align the prompt text to `extract_road_data` so prompt and tool_config agree (FR23). (This constant will move to circuits/exam.py in FEAT-002, but fix it here so the value is correct wherever it lands.)",
+    "functions/core/decider.py: REMOVE the stray `logger.info(response)` line inside the invoke_endpoint try block that dumps the entire SageMaker response (FR24). Keep every structured logger.info line and the elapsed_ms (time.monotonic) measurement untouched.",
+    "README.md: change the line ~90 default `us.amazon.nova-pro-v1:0` to `us.amazon.nova-lite-v1:0` (fixes both the wrong tier and the missing prefix in one edit). Leave api_stack.py IAM ARNs as-is - they derive from cfg.vision_model_id and .removeprefix('us.') and are already consistent once the value is Lite.",
+    "Verify no hf_ token literal exists anywhere in tracked source and run the full checks below."
+  ],
+  "acceptance_criteria": [
+    "`uv run python -c \"import stacks.config; stacks.config.Settings()\"` succeeds (AC12).",
+    "`uv run cdk synth DeciderStack` no longer raises `ImportError: cannot import name 'Settings'` and proceeds past the config/import stage (AC14 partial).",
+    "The exam SYSTEM_VLM_PROMPT and tool_config both reference `extract_road_data`; the stray `logger.info(response)` is gone from decider.py (AC11).",
+    "VISION_MODEL_ID resolves to us.amazon.nova-lite-v1:0 in stacks/config.py, the media.py fallback default, and the README (AC10).",
+    "`grep -ri \"hf_[A-Za-z0-9]\"` over tracked source (excluding uv.lock hf_xet/hf_hub and .agents) returns no token literal (AC8/NFR1).",
+    "`uv run python -m pytest -q` collects and passes the existing 7 tests."
+  ],
+  "verification": [
+    "uv sync",
+    "uv run python -m pytest -q",
+    "uv run ruff check functions stacks",
+    "uv run python -c \"import stacks.config; print(stacks.config.Settings().vision_model_id)\"",
+    "uv run cdk synth DeciderStack 2>&1 | Select-String -Pattern 'ImportError' -Quiet  (expect no match)"
+  ],
+  "blocked_reason": null,
+  "findings": "All FEAT-001 edits applied in the worktree and committed on roadguard-dual-mode. VERIFIED: `uv sync` installs pytest 9.1.1 (resolver picked >=8); `uv run python -m pytest -q` = 7 passed; `stacks.config.Settings().vision_model_id` = us.amazon.nova-lite-v1:0; importing stacks.sagemarker_stack no longer raises ImportError (the `from .config import Settings` fix resolves); media.py fallback default now us.amazon.nova-lite-v1:0; prompt + tool_config both use `extract_road_data`; stray `logger.info(response)` removed from decider.py; README line ~90 now us.amazon.nova-lite-v1:0. Token hygiene: no hf_ token literal in tracked source (the only prior hit was config.py's undefined-name bug `os.getenv(HF_TOKEN)`, now fixed to `field(default_factory=lambda: os.getenv('HF_TOKEN',''))`; .agents docs and uv.lock hf_xet/hf_hub excluded per spec).\n\nMANUAL / DEPLOY-TIME CHECKS (could NOT verify in this env): (1) `uv run cdk synth DeciderStack` cannot run here because the `cdk` Node CLI is not installed (`uv run cdk` -> 'program not found'); verified the Python import stage it used to fail at instead, by importing stacks.config + stacks.sagemarker_stack successfully. Run `cdk synth DeciderStack` on a machine with the CDK CLI to confirm AC14. (2) The exposed Hugging Face token MUST be revoked/rotated on Hugging Face and supplied only via .env / Secrets Manager (documented in sagemarker_stack.py docstring + serve.py comment).\n\nRUFF NOTE: `uv run ruff check functions stacks` still reports PRE-EXISTING errors in stacks/code/serve.py (I001 import order, F841 unused HF_TOKEN local, BLE001 blind except) that exist unchanged on base HEAD and that FEAT-001 explicitly says to leave as-is (keep serve.py load/token-from-env, no inspect branch). All files I actually changed lint clean (`ruff check functions stacks/config.py` passes; fixed the I001 on the sagemarker_stack import line I touched). Base branch was green only for the 7 unittest tests, not for ruff over these two legacy files."
+}

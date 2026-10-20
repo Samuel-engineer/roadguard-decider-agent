@@ -17,6 +17,8 @@ engine: SystemOneEngine | None = None
 async def lifespan(app: FastAPI):
     """Équivalent direct de model_fn : exécuté une seule fois au boot."""
     global engine
+    # Le jeton Hugging Face provient de l'environnement (container env HF_TOKEN) et
+    # n'est jamais journalisé. huggingface_hub le lit automatiquement.
     HF_TOKEN = os.getenv("HF_TOKEN")
     device = "cuda" if torch.cuda.is_available() else "cpu"
     model_id = os.getenv("MODEL_ID", "StrandsAgents/strands-decider-2B-hobson-v21")
