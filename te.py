@@ -1,5 +1,6 @@
-import boto3
 import json
+
+import boto3
 
 client = boto3.client("sagemaker-runtime", region_name="us-east-1")
 

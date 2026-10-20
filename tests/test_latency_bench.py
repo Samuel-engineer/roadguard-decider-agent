@@ -16,7 +16,7 @@ from unittest.mock import patch
 _REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(_REPO_ROOT / "bench"))
 
-import latency  # noqa: E402
+import latency
 
 
 class LatencyStatsTests(unittest.TestCase):

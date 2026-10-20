@@ -1,13 +1,15 @@
+import logging
 import os
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Request, Response, status
-import torch
-import logging
-logger = logging.getLogger()
 
+import torch
+from fastapi import FastAPI, Request, Response, status
+from pydantic import ValidationError
 from strands_decider.infer import SystemOneEngine
 from strands_decider.modeling import StrandsDeciderModel
 from strands_decider.schema import SystemOneRequest
+
+logger = logging.getLogger()
 
 # Variable globale stockant le moteur en mémoire
 engine: SystemOneEngine | None = None
@@ -19,7 +21,6 @@ async def lifespan(app: FastAPI):
     global engine
     # Le jeton Hugging Face provient de l'environnement (container env HF_TOKEN) et
     # n'est jamais journalisé. huggingface_hub le lit automatiquement.
-    HF_TOKEN = os.getenv("HF_TOKEN")
     device = "cuda" if torch.cuda.is_available() else "cpu"
     model_id = os.getenv("MODEL_ID", "StrandsAgents/strands-decider-2B-hobson-v21")
     logger.info(model_id)
@@ -70,7 +71,7 @@ async def invocations(request: Request):
     body_bytes = await request.body()
     try:
         input_data = SystemOneRequest.model_validate_json(body_bytes)
-    except Exception as exc:
+    except ValidationError as exc:
         return Response(
             content=f"Erreur de validation JSON: {exc}",
             status_code=status.HTTP_400_BAD_REQUEST,
