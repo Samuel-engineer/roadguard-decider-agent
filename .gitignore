@@ -16,3 +16,11 @@ wheels/
 cdk.out/
 .ruff_cache/
 file.json
+
+# Agent workflow transient state (keep committed feature specs under features/)
+.agents/tasks/*.md
+.agents/tasks/*.json
+.agents/tasks/task-roadguard-dual-mode/context.json
+.agents/tasks/task-roadguard-dual-mode/review.json
+.agents/tasks/task-roadguard-dual-mode/task.json
+.agents/tasks/task-roadguard-dual-mode/verdict.json
