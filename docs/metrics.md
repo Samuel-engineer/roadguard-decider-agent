@@ -1,6 +1,6 @@
 # Métriques de latence — RoadGuard
 
-> Chiffres mesurés contre une API déployée. La ligne « Nova décide tout » reste `n/a` : cette approche mono-appel VLM n'est pas mesurée par ce banc.
+> ⚠️ **Chiffres SYNTHÉTIQUES / ILLUSTRATIFS** — générés en mode `--mock` (hors-ligne, sans appel réseau). Ils servent à valider la structure du tableau et le harnais de chronométrage ; ils ne reflètent **aucune mesure réelle**. Les valeurs live restent à produire : <à remplir après un run live>.
 
 ## Tableau par mode
 
@@ -10,16 +10,16 @@ non mesurée par ce banc).
 
 | mode | min | p50 | p95 | mean | max |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| Strands Decider forme fermée — exam | 1500 | 1500 | 1500 | 1500 | 1500 |
-| Strands Decider forme fermée — situation | 1500 | 1500 | 1500 | 1500 | 1500 |
-| Nova décide tout (non mesuré) | n/a | n/a | n/a | n/a | n/a |
+| Strands Decider forme fermée — exam | 1 | 2 | 2 | 1 | 2 |
+| Strands Decider forme fermée — situation | 1 | 2 | 2 | 2 | 2 |
+| Nova décide tout (illustratif, NON mesuré) | illustratif | illustratif | illustratif | illustratif | illustratif |
 
 Chiffres live à confirmer : <à remplir après un run live> (min / p50 / p95 / mean / max en ms
 par mode, pour un run réel contre l'API déployée).
 
 ## Paramètres du run
 
-- Nombre d'appels par mode (N) : **3**
+- Nombre d'appels par mode (N) : **5**
 - Modes exercés : exam, situation
 
 ## Commandes de reproduction
@@ -27,7 +27,7 @@ par mode, pour un run réel contre l'API déployée).
 Run live (mesure réelle contre l'API déployée) :
 
 ```bash
-uv run python bench/latency.py --api <url> --image <path> --runs 3
+uv run python bench/latency.py --api <url> --image <path> --runs 5
 ```
 
 Run hors-ligne (structure/harnais, chiffres synthétiques) :
