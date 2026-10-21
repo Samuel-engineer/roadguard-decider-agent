@@ -36,11 +36,13 @@ def _retrieval_question_context(facts: dict[str, Any]) -> str:
     return "\n".join(parts)
 
 
-def _run_retrieval(query: str) -> list[dict[str, Any]]:
+def _run_retrieval(query: str, *, number_of_results: int = 5) -> list[dict[str, Any]]:
     response = _BEDROCK_AGENT_RUNTIME.retrieve(
         knowledgeBaseId=os.environ["KNOWLEDGE_BASE_ID"],
         retrievalQuery={"text": query[:20000]},
-        retrievalConfiguration={"vectorSearchConfiguration": {"numberOfResults": 5}},
+        retrievalConfiguration={
+            "vectorSearchConfiguration": {"numberOfResults": number_of_results}
+        },
     )
 
     references = []
@@ -70,28 +72,25 @@ def _retrieve_knowledge_exam(facts: dict[str, Any]) -> list[dict[str, Any]]:
     return _run_retrieval(query)
 
 
+def _clean_str_list(values: Any) -> list[str]:
+    if not isinstance(values, list):
+        return []
+    return [value.strip() for value in values if isinstance(value, str) and value.strip()]
+
+
 def _retrieve_knowledge_situation(facts: dict[str, Any]) -> list[dict[str, Any]]:
+    # Foreground the decisive regulatory elements and the driver's maneuver
+    # intentions so the vector match keys on them, and only keep a bounded tail
+    # of keywords so decor nouns (bus, parking, retroviseur, ...) no longer
+    # dominate the retrieval. The raw scene_summary is deliberately dropped.
     parts: list[str] = []
 
-    scene_summary = facts.get("scene_summary")
-    if isinstance(scene_summary, str) and scene_summary.strip():
-        parts.append(scene_summary.strip())
-
-    for key in ("keywords", "signals"):
-        values = facts.get(key)
-        if isinstance(values, list):
-            for value in values:
-                if isinstance(value, str) and value.strip():
-                    parts.append(value.strip())
-
-    intentions = facts.get("intentions")
-    if isinstance(intentions, list):
-        for intention in intentions:
-            if isinstance(intention, str) and intention.strip():
-                parts.append(intention.strip())
+    parts.extend(_clean_str_list(facts.get("signals")))
+    parts.extend(_clean_str_list(facts.get("intentions")))
+    parts.extend(_clean_str_list(facts.get("keywords"))[:4])
 
     query = "\n".join(parts)
-    return _run_retrieval(query)
+    return _run_retrieval(query, number_of_results=3)
 
 
 def _retrieve_knowledge(

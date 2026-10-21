@@ -100,17 +100,10 @@ class KnowledgeBaseStack(Stack):
                     ),
                 ),
                 chunking_configuration=bedrock.CfnDataSource.ChunkingConfigurationProperty(
-                    chunking_strategy="HIERARCHICAL",
-                    hierarchical_chunking_configuration=bedrock.CfnDataSource.HierarchicalChunkingConfigurationProperty(
-                        level_configurations=[
-                            bedrock.CfnDataSource.HierarchicalChunkingLevelConfigurationProperty(
-                                max_tokens=1500
-                            ),
-                            bedrock.CfnDataSource.HierarchicalChunkingLevelConfigurationProperty(
-                                max_tokens=300
-                            ),
-                        ],
-                        overlap_tokens=60,
+                    chunking_strategy="FIXED_SIZE",
+                    fixed_size_chunking_configuration=bedrock.CfnDataSource.FixedSizeChunkingConfigurationProperty(
+                        max_tokens=350,
+                        overlap_percentage=20,
                     ),
                 ),
             ),
