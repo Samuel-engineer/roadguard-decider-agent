@@ -111,7 +111,15 @@ class LatencyStatsTests(unittest.TestCase):
                 redirect_stdout(buffer),
             ):
                 exit_code = latency.main(
-                    ["--api", "https://api.example", "--image", str(image), "--runs", "3"]
+                    [
+                        "--api",
+                        "https://api.example",
+                        "--image",
+                        str(image),
+                        "--runs",
+                        "3",
+                        "--no-emit-metrics",
+                    ]
                 )
 
         self.assertEqual(exit_code, 1)
@@ -131,7 +139,15 @@ class LatencyStatsTests(unittest.TestCase):
                 redirect_stdout(buffer),
             ):
                 exit_code = latency.main(
-                    ["--api", "https://api.example", "--image", str(image), "--runs", "3"]
+                    [
+                        "--api",
+                        "https://api.example",
+                        "--image",
+                        str(image),
+                        "--runs",
+                        "3",
+                        "--no-emit-metrics",
+                    ]
                 )
 
         self.assertEqual(exit_code, 0)
