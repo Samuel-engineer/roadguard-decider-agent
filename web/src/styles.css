@@ -78,7 +78,7 @@
   --dur: 260ms;
   --dur-slow: 520ms;
 
-  --app-max: 920px;
+  --app-max: 1320px;
 
   font-family: var(--font-body);
   background: var(--bg);
@@ -609,6 +609,7 @@ form {
 
 .scene-summary p {
   margin: 0;
+  max-width: 90ch;
   color: var(--text);
   line-height: 1.5;
 }
@@ -618,10 +619,8 @@ form {
   display: grid;
   gap: var(--space-4);
   margin-top: var(--space-5);
-}
-
-[data-mode="situation"] .card-list {
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  align-items: start;
 }
 
 /* --- Card --- */
@@ -1064,10 +1063,6 @@ form {
 
   .results-topline .latency-chip {
     align-self: flex-start;
-  }
-
-  [data-mode="exam"] .card-list {
-    grid-template-columns: 1fr;
   }
 }
 
