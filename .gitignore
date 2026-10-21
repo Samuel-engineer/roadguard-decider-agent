@@ -24,4 +24,5 @@ file.json
 .agents/tasks/task-roadguard-dual-mode/review.json
 .agents/tasks/task-roadguard-dual-mode/task.json
 .agents/tasks/task-roadguard-dual-mode/verdict.json
+.agents/tasks/task-roadguard-quality/
 .agents/wf/
