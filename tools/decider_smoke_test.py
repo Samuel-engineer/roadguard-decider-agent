@@ -1,3 +1,4 @@
+# Smoke-test manuel de l'endpoint SageMaker Decider — exécution ponctuelle, hors app/CI.
 import json
 
 import boto3

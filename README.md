@@ -14,6 +14,32 @@ Bedrock Nova → récupération Knowledge Base → `decide(...)` sur l'endpoint 
 réponse unifiée `{mode, cards, scene_summary, debug}`. Le seul point de branchement
 est le champ `mode` (`exam` par défaut, ou `situation`).
 
+## Soumission hackathon
+
+[![Licence : Apache-2.0](https://img.shields.io/badge/licence-Apache--2.0-blue.svg)](LICENSE)
+
+Licence **Apache-2.0** (OSI) — voir [`LICENSE`](LICENSE).
+
+Pattern déclaré : `#strands-decider-2b` · `#policy`.
+
+- **Article Builder Center :** `<lien à ajouter>`
+- **Vidéo démo (< 3 min) :** `<lien à ajouter>`
+
+### Pattern réutilisable Strands Decider 2B
+
+> Le pattern réutilisable est packagé dans
+> [`patterns/closed-form-policy/`](patterns/closed-form-policy/) : question(s)
+> typée(s) et jeu d'options, câblage qui place la décision dans le chemin d'outil de
+> l'agent, et une note sur ce qu'il fait et comment le réutiliser.
+
+### Checklist pass/fail
+
+- [ ] Article publié sur AWS Builder Center (décrit l'agent et la décision Decider 2B)
+- [ ] Repo public avec licence OSI (Apache-2.0) + code source de l'agent
+- [ ] Pattern de décision Strands Decider 2B réutilisable, clairement libellé
+- [ ] Vidéo démo publique < 3 min montrant l'agent et sa décision Decider 2B
+- [ ] Tags requis présents : `#strands-decider-2b` et `#policy`
+
 ## Pattern déclaré : Policy
 
 Le pattern de soumission est **Policy** : plutôt que de laisser le modèle décider
