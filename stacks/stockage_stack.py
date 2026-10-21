@@ -38,10 +38,10 @@ class StockageStack(Stack):
         # Fixed name so OpenSearchStack can grant the KB role access to it
         # without a cross-stack dependency.
 
-        self.supplemental_bucket = s3.Bucket(
-            self,
-            "SupplementalBucket",
-            bucket_name=f"bedrock-kb-supplemental-{self.account}-{self.region}",
-            removal_policy=RemovalPolicy.DESTROY,  # Supprime le bucket lors de la destruction du stack
-            auto_delete_objects=True,  # Supprime les objets lors de la destruction du bucket*
-        )
+        # self.supplemental_bucket = s3.Bucket(
+        #     self,
+        #     "SupplementalBucket",
+        #     bucket_name=f"bedrock-kb-supplemental-{self.account}-{self.region}",
+        #     removal_policy=RemovalPolicy.DESTROY,  # Supprime le bucket lors de la destruction du stack
+        #     auto_delete_objects=True,  # Supprime les objets lors de la destruction du bucket*
+        # )

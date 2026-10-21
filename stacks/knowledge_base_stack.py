@@ -23,7 +23,7 @@ class KnowledgeBaseStack(Stack):
         construct_id: str,
         collection: oss.CfnCollection,
         rule_bucket: s3.Bucket,
-        supplemental_bucket: s3.Bucket,
+        # supplemental_bucket: s3.Bucket,
         **kwargs,
     ) -> None:
         super().__init__(scope, construct_id, **kwargs)
@@ -49,16 +49,16 @@ class KnowledgeBaseStack(Stack):
                 type="VECTOR",
                 vector_knowledge_base_configuration=bedrock.CfnKnowledgeBase.VectorKnowledgeBaseConfigurationProperty(
                     embedding_model_arn=f"arn:aws:bedrock:{self.region}::foundation-model/{cfg.embedding_model_id}",
-                    supplemental_data_storage_configuration=bedrock.CfnKnowledgeBase.SupplementalDataStorageConfigurationProperty(
-                        supplemental_data_storage_locations=[
-                            bedrock.CfnKnowledgeBase.SupplementalDataStorageLocationProperty(
-                                supplemental_data_storage_location_type="S3",
-                                s3_location=bedrock.CfnKnowledgeBase.S3LocationProperty(
-                                    uri=f"s3://{supplemental_bucket.bucket_name}/"
-                                ),
-                            )
-                        ]
-                    ),
+                    # supplemental_data_storage_configuration=bedrock.CfnKnowledgeBase.SupplementalDataStorageConfigurationProperty(
+                    #     supplemental_data_storage_locations=[
+                    #         bedrock.CfnKnowledgeBase.SupplementalDataStorageLocationProperty(
+                    #             supplemental_data_storage_location_type="S3",
+                    #             s3_location=bedrock.CfnKnowledgeBase.S3LocationProperty(
+                    #                 uri=f"s3://{supplemental_bucket.bucket_name}/"
+                    #             ),
+                    #         )
+                    #     ]
+                    # ),
                 ),
             ),
             storage_configuration=bedrock.CfnKnowledgeBase.StorageConfigurationProperty(
@@ -93,12 +93,6 @@ class KnowledgeBaseStack(Stack):
                 ),
             ),
             vector_ingestion_configuration=bedrock.CfnDataSource.VectorIngestionConfigurationProperty(
-                parsing_configuration=bedrock.CfnDataSource.ParsingConfigurationProperty(
-                    parsing_strategy="BEDROCK_DATA_AUTOMATION",
-                    bedrock_data_automation_configuration=bedrock.CfnDataSource.BedrockDataAutomationConfigurationProperty(
-                        parsing_modality="MULTIMODAL"
-                    ),
-                ),
                 chunking_configuration=bedrock.CfnDataSource.ChunkingConfigurationProperty(
                     chunking_strategy="FIXED_SIZE",
                     fixed_size_chunking_configuration=bedrock.CfnDataSource.FixedSizeChunkingConfigurationProperty(

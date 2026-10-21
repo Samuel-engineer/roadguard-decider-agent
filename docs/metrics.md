@@ -10,8 +10,8 @@ non mesurée par ce banc).
 
 | mode | min | p50 | p95 | mean | max |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| Strands Decider forme fermée — exam | 1 | 2 | 2 | 1 | 2 |
-| Strands Decider forme fermée — situation | 1 | 2 | 2 | 2 | 2 |
+| Strands Decider forme fermée — exam | 1 | 2 | 2 | 2 | 2 |
+| Strands Decider forme fermée — situation | 2 | 2 | 2 | 2 | 2 |
 | Nova décide tout (illustratif, NON mesuré) | illustratif | illustratif | illustratif | illustratif | illustratif |
 
 Chiffres live à confirmer : <à remplir après un run live> (min / p50 / p95 / mean / max en ms

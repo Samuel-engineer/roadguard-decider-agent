@@ -22,7 +22,7 @@ knowledge_base_stack = KnowledgeBaseStack(
     "KnowledgeBaseStack",
     collection=aoss_stack.collection,
     rule_bucket=stockage_stack.rule_bucket,
-    supplemental_bucket=stockage_stack.supplemental_bucket,
+    # supplemental_bucket=stockage_stack.supplemental_bucket,
     env=env,
 )
 

@@ -16,6 +16,8 @@ est le champ `mode` (`exam` par défaut, ou `situation`).
 
 ## Soumission hackathon
 
+> Récapitulatif complet et étapes de finalisation : [`SUBMISSION.md`](SUBMISSION.md).
+
 [![Licence : Apache-2.0](https://img.shields.io/badge/licence-Apache--2.0-blue.svg)](LICENSE)
 
 Licence **Apache-2.0** (OSI) — voir [`LICENSE`](LICENSE).
