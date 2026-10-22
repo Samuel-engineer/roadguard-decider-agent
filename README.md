@@ -24,8 +24,8 @@ Licence **Apache-2.0** (OSI) — voir [`LICENSE`](LICENSE).
 
 Pattern déclaré : `#strands-decider-2b` · `#policy`.
 
-- **Article Builder Center :** `<lien à ajouter>`
-- **Vidéo démo (< 3 min) :** `<lien à ajouter>`
+- **Article Builder Center :** [https://builder.aws.com/project/3L2oB6g6YzJJ4DopnnHLPdsMlC7/roadguard-from-roads-to-drones-split-second-policy-decisions-with-strands-decider-2b](https://builder.aws.com/project/3L2oB6g6YzJJ4DopnnHLPdsMlC7/roadguard-from-roads-to-drones-split-second-policy-decisions-with-strands-decider-2b)
+- **Vidéo démo (< 3 min) :** [https://www.youtube.com/watch?v=1kB_0ua-gbY](https://www.youtube.com/watch?v=1kB_0ua-gbY)
 
 ### Pattern réutilisable Strands Decider 2B
 
