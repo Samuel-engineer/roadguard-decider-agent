@@ -36,11 +36,11 @@ Pattern déclaré : `#strands-decider-2b` · `#policy`.
 
 ### Checklist pass/fail
 
-- [ ] Article publié sur AWS Builder Center (décrit l'agent et la décision Decider 2B)
-- [ ] Repo public avec licence OSI (Apache-2.0) + code source de l'agent
-- [ ] Pattern de décision Strands Decider 2B réutilisable, clairement libellé
-- [ ] Vidéo démo publique < 3 min montrant l'agent et sa décision Decider 2B
-- [ ] Tags requis présents : `#strands-decider-2b` et `#policy`
+- [X] Article publié sur AWS Builder Center (décrit l'agent et la décision Decider 2B)
+- [X] Repo public avec licence OSI (Apache-2.0) + code source de l'agent
+- [X] Pattern de décision Strands Decider 2B réutilisable, clairement libellé
+- [X] Vidéo démo publique < 3 min montrant l'agent et sa décision Decider 2B
+- [X] Tags requis présents : `#strands-decider-2b` et `#policy`
 
 ## Pattern déclaré : Policy
 
