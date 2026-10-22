@@ -90,8 +90,7 @@ bas.
 > **Repli sans build : `client-test.html`.** Pour tester le flux sans construire le
 > front, ouvrir `client-test.html` dans un navigateur : la page sélectionne le mode,
 > demande une autorisation, envoie le fichier vers S3 et affiche les cartes, le résumé
-> de scène et le panneau debug de `/query`. Ce repli est conservé volontairement (ne
-> pas le supprimer).
+> de scène et le panneau debug de `/query`.
 
 ---
 
@@ -205,13 +204,13 @@ Flux de déploiement :
 
 1. Construire le bundle front dans `web/` AVANT la synthèse (le build n'est pas
    lancé pendant `cdk synth` pour garder la synthèse hermétique). `VITE_API_URL`
-   doit pointer vers l'URL `/query` exposée par `ApiStack` (sortie
-   `ApiEndpointUrl`) :
+   doit pointer vers l'URL exposée par `ApiStack` (sortie
+   `ApiEndpointUrl`sans `/query`) :
 
    ```bash
    cd web
-   VITE_API_URL="https://<api-id>.execute-api.<region>.amazonaws.com/query" npm install
-   VITE_API_URL="https://<api-id>.execute-api.<region>.amazonaws.com/query" npm run build
+   VITE_API_URL="https://<api-id>.execute-api.<region>.amazonaws.com" npm install
+   VITE_API_URL="https://<api-id>.execute-api.<region>.amazonaws.com" npm run build
    ```
 
    `web/dist` doit exister avant `cdk synth WebStack` / `cdk deploy WebStack`
